@@ -1,0 +1,32 @@
+# Java
+*.class
+
+# SCM
+.git
+
+# Package files
+*.jar
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+*.gz
+
+# Build
+target/
+bin/
+build/
+dependency-reduced-pom.xml
+.mvn/
+
+# IDE
+.idea/
+.project
+.classpath
+
+# OS
+.DS_Store
+
+# Log files
+*.log

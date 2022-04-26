@@ -1,0 +1,310 @@
+#
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software
+# without restriction, including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Creates the components for asynchronous data load into a QLDB ledger via a Kinesis Data Stream.  The stream
+  can be created by this template or it may use an existing stream.  This template creates an SQS Dead Letter Queue
+  to receive events from the stream that cannot be processed.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Ledger"
+        Parameters:
+          - LedgerName
+          - LedgerRegion
+      - Label:
+          default: "Lambda Loader"
+        Parameters:
+          - LambdaCodeS3Bucket
+          - LambdaCodeS3Key
+          - LoaderHandlerName
+          - RevisionWriterClass
+          - LambdaMemory
+          - LoaderProvisionedConcurrency
+          - MaxOccRetries
+          - MaxLedgerSessionsPerLambda
+          - LoaderStrictMode
+      - Label:
+          default: "Delivery Channel Settings"
+        Parameters:
+          - CreateStream
+          - StreamArn
+          - ShardCount
+          - StreamMode
+          - RetentionPeriodHours
+          - StreamConsumerBatchSize
+          - ParallelizationFactor
+          - MaximumRetries
+          - MaximumEventAgeSeconds
+          - MaximumBatchingWindowInSeconds
+
+Parameters:
+  LedgerName:
+    Description: "Name of the QLDB ledger"
+    Type: "String"
+
+  LedgerRegion:
+    Description: "The region where the QLDB ledger is located.  Leave blank to use the local region."
+    Type: "String"
+
+  LambdaCodeS3Bucket:
+    Description: "The S3 bucket containing this stack's Lambda code"
+    Type: "String"
+
+  LambdaCodeS3Key:
+    Description: "The S3 key of the zip file containing this stack's Lambda code"
+    Type: "String"
+
+  LoaderHandlerName:
+    Description: "The fully-qualified class and method names of the loader Lambda function"
+    Type: "String"
+    Default: "software.amazon.qldb.load.receiver.KinesisDataStreamEventReceiver::handleRequest"
+
+  RevisionWriterClass:
+    Description: "The fully-qualified name of the RevisionWriter class the function should use to write events to the ledger."
+    Type: "String"
+    Default: "software.amazon.qldb.load.writer.BaseRevisionWriter"
+
+  LambdaMemory:
+    Description: "The amount of memory (GB) to allocate to the Lambda function"
+    Type: Number
+    Default: 2048
+
+  LoaderProvisionedConcurrency:
+    Description: "The number of Lambda instances to initialize for loading"
+    Type: Number
+    MinValue: 1
+    Default: 10
+
+  MaxOccRetries:
+    Description: "The maximum number of times the QLDB driver will retry a transaction on OCC conflicts"
+    Type: "Number"
+    Default: 3
+
+  MaxLedgerSessionsPerLambda:
+    Description: "The maximum of number of concurrent QLDB sessions per Lambda function instance"
+    Type: "Number"
+    Default: 1
+
+  LoaderStrictMode:
+    Description: "Strict Mode setting for the loader function"
+    Type: "String"
+    AllowedValues:
+      - "True"
+      - "False"
+    Default: "True"
+
+  CreateStream:
+    Description: "Indicates whether or not the Kinesis Data Stream should be created."
+    Type: "String"
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+
+  StreamConsumerBatchSize:
+    Description: "The maximum number of records in each batch that Lambda pulls from the stream and sends to the function. Omit if using an existing stream."
+    Type: "Number"
+    Default: 100
+
+  ParallelizationFactor:
+    Description: "The number of batches to process concurrently from each shard. Omit if using an existing stream."
+    Type: "Number"
+    Default: 1
+
+  RetentionPeriodHours:
+    Description: "The number of hours for the data records that are stored in shards to remain accessible. Omit if using an existing stream."
+    Type: "Number"
+    Default: 24
+
+  ShardCount:
+    Description: "The number of shards that the stream uses. For greater provisioned throughput, increase the number of shards. Omit if using an existing stream."
+    Type: "Number"
+    Default: 1
+
+  StreamMode:
+    Description: "Specifies the capacity mode for the data stream. Omit if using an existing stream."
+    Type: "String"
+    AllowedValues:
+      - "ON_DEMAND"
+      - "PROVISIONED"
+    Default: "PROVISIONED"
+
+  StreamArn:
+    Description: "If the Kinesis stream already exists, set the stream ARN here.  If creating the stream with this stack, omit."
+    Type: "String"
+
+  MaximumRetries:
+    Description: "Discard records after the specified number of retries. The default value is -1, which sets the maximum number of retries to infinite. When retries is infinite, Lambda retries failed records until the record expires in the stream."
+    Type: "Number"
+    Default: -1
+
+  MaximumEventAgeSeconds:
+    Description: "Tells the Lambda function to discard records older than the specified age (in seconds). The default value is -1, which sets the maximum age to infinite. When the value is set to infinite, Lambda never discards old records and records expire based on the stream's setting (configured via RetentionPeriodHours)."
+    Type: "Number"
+    Default: -1
+
+  MaximumBatchingWindowInSeconds:
+    Description: "The maximum amount of time, in seconds, that Lambda spends gathering records from the stream before invoking the function.  A value of zero tells Lambda not to wait to buffer records."
+    Type: "Number"
+    Default: 0
+
+
+Conditions:
+  MakeStream: !Equals ["Yes", !Ref CreateStream]
+  RegionSet: !Not [!Equals ["", !Ref LedgerRegion]]
+
+
+Resources:
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+
+  Stream:
+    Type: AWS::Kinesis::Stream
+    Condition: MakeStream
+    Properties:
+      RetentionPeriodHours: !Ref RetentionPeriodHours
+      ShardCount: !Ref ShardCount
+      StreamModeDetails:
+        StreamMode: !Ref StreamMode
+
+  LedgerLoadFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonQLDBReadOnly"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: !Join [ "-", [ !Ref AWS::StackName, !Ref LedgerName, "LoaderLedgerAccess" ] ]
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "qldb:SendCommand"
+                Resource:
+                  - !Join [ "", [ "arn:aws:qldb:", !If [RegionSet, !Ref LedgerRegion, !Ref AWS::Region], ":", !Ref "AWS::AccountId", ":ledger/", !Ref LedgerName ] ]
+                  - !Join [ "", [ "arn:aws:qldb:", !If [RegionSet, !Ref LedgerRegion, !Ref AWS::Region], ":", !Ref "AWS::AccountId", ":ledger/", !Ref LedgerName, "/*" ] ]
+              - Effect: "Allow"
+                Action:
+                  - "qldb:PartiQLDelete"
+                  - "qldb:PartiQLInsert"
+                  - "qldb:PartiQLUpdate"
+                  - "qldb:PartiQLSelect"
+                Resource:
+                  - !Join [ "", [ "arn:aws:qldb:", !If [RegionSet, !Ref LedgerRegion, !Ref AWS::Region], ":", !Ref "AWS::AccountId", ":ledger/", !Ref LedgerName ] ]
+                  - !Join [ "", [ "arn:aws:qldb:", !If [RegionSet, !Ref LedgerRegion, !Ref AWS::Region], ":", !Ref "AWS::AccountId", ":ledger/", !Ref LedgerName, "/*" ] ]
+              - Effect: "Allow"
+                Action:
+                  - "kinesis:DescribeStream"
+                  - "kinesis:DescribeStreamSummary"
+                  - "kinesis:GetRecords"
+                  - "kinesis:GetShardIterator"
+                  - "kinesis:ListShards"
+                  - "kinesis:ListStreams"
+                  - "kinesis:SubscribeToShard"
+                Resource:
+                  - !If [MakeStream, !GetAtt Stream.Arn, !Ref StreamArn]
+              - Effect: "Allow"
+                Action:
+                  - "sqs:SendMessage"
+                Resource:
+                  - !GetAtt DeadLetterQueue.Arn
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+
+  LedgerLoadFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "Loads documents from Kinesis into a QLDB ledger"
+      Runtime: java11
+      Handler: !Ref LoaderHandlerName
+      MemorySize: !Ref LambdaMemory
+      Timeout: 30
+      Role: !GetAtt LedgerLoadFunctionRole.Arn
+      Environment:
+        Variables:
+          LEDGER_NAME: !Ref LedgerName
+          LEDGER_REGION: !If [RegionSet, !Ref LedgerRegion, !Ref AWS::Region]
+          MAX_SESSIONS_PER_LAMBDA: !Ref MaxLedgerSessionsPerLambda
+          MAX_OCC_RETRIES: !Ref MaxOccRetries
+          STRICT_MODE: !Ref LoaderStrictMode
+          REVISION_WRITER: !Ref RevisionWriterClass
+      Code:
+        S3Bucket: !Ref LambdaCodeS3Bucket
+        S3Key: !Ref LambdaCodeS3Key
+
+  LedgerLoadFunctionVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref LedgerLoadFunction
+
+  LedgerLoadFunctionAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref LedgerLoadFunction
+      FunctionVersion: !GetAtt LedgerLoadFunctionVersion.Version
+      Name: "LedgerLoaderLatest"
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: !Ref LoaderProvisionedConcurrency
+
+  LambdaFunctionMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:  !If [MakeStream, !GetAtt Stream.Arn, !Ref StreamArn]
+      BatchSize: !Ref StreamConsumerBatchSize
+      BisectBatchOnFunctionError: True
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      FunctionName: !Ref LedgerLoadFunctionAlias
+      ParallelizationFactor: !Ref ParallelizationFactor
+      StartingPosition: TRIM_HORIZON
+      MaximumRetryAttempts: !Ref MaximumRetries
+      MaximumRecordAgeInSeconds: !Ref MaximumEventAgeSeconds
+      MaximumBatchingWindowInSeconds: !Ref MaximumBatchingWindowInSeconds
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt DeadLetterQueue.Arn
+
+
+Outputs:
+  StreamName:
+    Description: "The name of the Kinesis data stream"
+    Value: !If [MakeStream, !Ref Stream, "" ]
+
+  StreamArn:
+    Description: "The ARN of the Kinesis data stream"
+    Value: !If [MakeStream, !GetAtt Stream.Arn, !Ref StreamArn ]
+
+  DeadLetterQueueUrl:
+    Description: "The URL of the SQS dead-letter queue created in this stack"
+    Value: !Ref DeadLetterQueue
+
+  DeadLetterQueueName:
+    Description: "The name of the SQS dead-letter queue created in this stack"
+    Value: !GetAtt DeadLetterQueue.QueueName
