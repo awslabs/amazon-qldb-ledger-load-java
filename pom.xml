@@ -34,6 +34,42 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         to suit the needs of specific customer use cases.
     </description>
 
+    <licenses>
+        <license>
+            <name>MIT-0</name>
+            <url>https://github.com/aws/mit-0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:https://github.com/awslabs/amazon-qldb-ledger-load-java.git</connection>
+        <developerConnection>scm:git:git@github.com:awslabs/amazon-qldb-ledger-load-java.git</developerConnection>
+        <url>https://github.com/awslabs/amazon-qldb-ledger-load-java</url>
+    </scm>
+
+    <developers>
+        <developer>
+            <id>amazonwebservices</id>
+            <organization>Amazon Web Services</organization>
+            <organizationUrl>https://aws.amazon.com</organizationUrl>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>maven</id>
+            <url>https://aws.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>maven</id>
+            <url>https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
     <properties>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -45,6 +81,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
         <maven.jxr.plugin.version>2.3</maven.jxr.plugin.version>
         <maven.shade.plugin.version>3.2.4</maven.shade.plugin.version>
+        <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
+        <nexus.staging.maven.plugin.version>1.6.7</nexus.staging.maven.plugin.version>
 
         <aws.sdk.version>2.17.129</aws.sdk.version>
         <aws.lambda.core.version>1.2.1</aws.lambda.core.version>
@@ -229,6 +267,35 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                         <version>${edwgiz.cachefile.transformer.version}</version>
                     </dependency>
                 </dependencies>
+            </plugin>
+
+            <plugin>
+                <!-- GPG signing. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${maven.gpg.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <!-- Publish the artifacts. -->
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>${nexus.staging.maven.plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>maven</serverId>
+                    <nexusUrl>https://aws.oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                </configuration>
             </plugin>
         </plugins>
     </build>
