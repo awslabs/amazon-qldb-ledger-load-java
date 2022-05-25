@@ -35,8 +35,15 @@ public class BaseRevisionWriterTest {
     private final static IonSystem ION_SYSTEM = IonSystemBuilder.standard().build();
 
     @Test
+    public void testBuilderIsCorrectType() {
+        RevisionWriterBuilder builder = BaseRevisionWriter.builder();
+        assertNotNull(builder);
+        assertInstanceOf(BaseRevisionWriter.BaseRevisionWriterBuilder.class, builder);
+    }
+
+    @Test
     public void testStrictModeIsDefault() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         assertTrue(writer.isStrictMode());
     }
 
@@ -53,13 +60,13 @@ public class BaseRevisionWriterTest {
         revision.put("test").newInt(10);
         event.setRevision(revision);
 
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         assertNull(writer.readCurrentRevision(null, event));
     }
 
     @Test
     public void testReadCurrentVersionNullEvent() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         assertNull(writer.readCurrentRevision(new MockTransactionExecutor(), null));
     }
 
@@ -75,7 +82,7 @@ public class BaseRevisionWriterTest {
         revision.put("test").newInt(10);
         event.setRevision(revision);
 
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         assertNull(writer.readCurrentRevision(new MockTransactionExecutor(), event));
     }
 
@@ -91,14 +98,14 @@ public class BaseRevisionWriterTest {
         revision.put("test").newInt(10);
         event.setRevision(revision);
 
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         assertNull(writer.readCurrentRevision(new MockTransactionExecutor(), event));
     }
 
     @Test
     public void testAdjustRevisionNullEvent() {
         assertDoesNotThrow(() -> {
-            BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+            BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
             writer.adjustRevision(null, null, null);
         });
     }
@@ -107,7 +114,7 @@ public class BaseRevisionWriterTest {
     public void testAdjustRevisionNullEventId() {
         assertDoesNotThrow(() -> {
             LoadEvent event = new LoadEvent();
-            BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+            BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
             writer.adjustRevision(null, event, null);
         });
     }
@@ -122,7 +129,7 @@ public class BaseRevisionWriterTest {
         revision.put("test").newInt(10);
         event.setRevision(revision);
 
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         writer.adjustRevision(null, event, null);
 
         assertTrue(revision.containsKey("oldDocumentId"));
@@ -131,7 +138,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentInsert() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -154,7 +161,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentUpdate() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -184,7 +191,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentDelete() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -213,7 +220,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentInsertAny() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -236,7 +243,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentUpdateAny() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -266,7 +273,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testWriteDocumentDeleteAny() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder().qldbDriver(new MockNoOpQldbDriver()).build();
+        BaseRevisionWriter writer = (BaseRevisionWriter) makeWriter();
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -290,11 +297,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateStrictInsertWithExistingRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
-
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -317,10 +320,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateStrictInsertValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -342,10 +342,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateStrictInsertValidVersionIgnored() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -367,10 +364,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateNonStrictInsertWithExistingRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -393,10 +387,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateNonStrictInsertValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -418,10 +409,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateNonStrictInsertValidVersionIgnored() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -443,10 +431,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateStrictNoCurrentRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -468,10 +453,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateStrictVersionZero() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -504,10 +486,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -540,10 +519,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -576,10 +552,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -612,10 +585,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateNonStrictNoCurrentRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -637,10 +607,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateNonStrictVersionZero() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -673,10 +640,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateNonStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -709,10 +673,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateNonStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -745,10 +706,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateUpdateNonStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -781,10 +739,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteStrictNoCurrentRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -806,10 +761,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -842,10 +794,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -878,10 +827,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteStrictVersionSame() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -914,10 +860,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -950,10 +893,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteNonStrictNoCurrentRevision() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -975,10 +915,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteNonStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1011,10 +948,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteNonStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1047,10 +981,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteNonStrictVersionSame() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1083,10 +1014,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateDeleteNonStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1119,10 +1047,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1155,10 +1080,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1191,10 +1113,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyStrictVersionSame() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1227,10 +1146,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(true)
-                .build();
+        RevisionWriter writer = makeWriter(true);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1263,10 +1179,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyNonStrictVersionTooLow() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1299,10 +1212,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyNonStrictVersionTooHigh() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1335,10 +1245,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyNonStrictVersionSame() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1371,10 +1278,7 @@ public class BaseRevisionWriterTest {
 
     @Test
     public void testValidateAnyNonStrictValid() {
-        BaseRevisionWriter writer = BaseRevisionWriter.builder()
-                .qldbDriver(new MockNoOpQldbDriver())
-                .strictMode(false)
-                .build();
+        RevisionWriter writer = makeWriter(false);
         MockTransactionExecutor txn = new MockTransactionExecutor();
 
         LoadEvent event = new LoadEvent();
@@ -1403,6 +1307,24 @@ public class BaseRevisionWriterTest {
         assertNotNull(result);
         assertFalse(result.skip);
         assertFalse(result.fail);
+    }
+
+
+    private RevisionWriter makeWriter(boolean strictMode) {
+        BaseRevisionWriter.BaseRevisionWriterBuilder builder = (BaseRevisionWriter.BaseRevisionWriterBuilder) BaseRevisionWriter.builder();
+
+        return builder
+                .qldbDriver(new MockNoOpQldbDriver())
+                .strictMode(strictMode)
+                .build();
+    }
+
+
+    private RevisionWriter makeWriter() {
+        BaseRevisionWriter.BaseRevisionWriterBuilder builder = (BaseRevisionWriter.BaseRevisionWriterBuilder) BaseRevisionWriter.builder();
+        return builder
+                .qldbDriver(new MockNoOpQldbDriver())
+                .build();
     }
     
     

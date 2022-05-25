@@ -221,7 +221,7 @@ public class BaseRevisionWriter extends RevisionWriter {
     }
 
 
-    public static BaseRevisionWriterBuilder builder() {
+    public static RevisionWriterBuilder builder() {
         return BaseRevisionWriterBuilder.builder();
     }
 
@@ -255,7 +255,7 @@ public class BaseRevisionWriter extends RevisionWriter {
 
 
         @Override
-        public BaseRevisionWriter build() {
+        public RevisionWriter build() {
             BaseRevisionWriter writer = new BaseRevisionWriter(driver, strictMode);
             writer.initialize();
             return writer;

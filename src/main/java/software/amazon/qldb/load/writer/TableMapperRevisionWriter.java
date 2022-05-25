@@ -92,4 +92,51 @@ public class TableMapperRevisionWriter extends BaseRevisionWriter {
 
         return super.validate(txn, event, currentRevision);
     }
+
+
+    public static RevisionWriterBuilder builder() {
+        return TableMapperRevisionWriterBuilder.builder();
+    }
+
+
+    public static class TableMapperRevisionWriterBuilder implements RevisionWriterBuilder {
+        private QldbDriver driver;
+        private boolean strictMode = true;
+
+
+        @Override
+        public TableMapperRevisionWriterBuilder qldbDriver(QldbDriver driver) {
+            this.driver = driver;
+            return this;
+        }
+
+
+        public TableMapperRevisionWriterBuilder strictMode(boolean strictMode) {
+            this.strictMode = strictMode;
+            return this;
+        }
+
+
+        @Override
+        public TableMapperRevisionWriterBuilder configureFromEnvironment() {
+            if (System.getenv().containsKey("STRICT_MODE")) {
+                strictMode = Boolean.parseBoolean(System.getenv("STRICT_MODE"));
+            }
+
+            return this;
+        }
+
+
+        @Override
+        public RevisionWriter build() {
+            TableMapperRevisionWriter writer = new TableMapperRevisionWriter(driver, strictMode);
+            writer.initialize();
+            return writer;
+        }
+
+
+        public static TableMapperRevisionWriterBuilder builder() {
+            return new TableMapperRevisionWriterBuilder();
+        }
+    }
 }

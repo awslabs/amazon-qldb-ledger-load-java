@@ -17,7 +17,6 @@
  */
 package software.amazon.qldb.load.writer;
 
-import software.amazon.qldb.QldbDriver;
 import software.amazon.qldb.load.util.LoaderUtils;
 
 import java.lang.reflect.Method;
