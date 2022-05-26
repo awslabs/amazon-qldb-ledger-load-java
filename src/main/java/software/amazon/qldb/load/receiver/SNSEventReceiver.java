@@ -49,6 +49,11 @@ public class SNSEventReceiver implements RequestHandler<SNSEvent, Object> {
 
     public Object handleRequest(SNSEvent request, Context context) {
 
+        if (request == null || request.getRecords() == null) {
+            logger.warn("Input is not a valid SNS event.  Ignoring event.");
+            return null;
+        }
+
         for (SNSEvent.SNSRecord record : request.getRecords()) {
             IonDatagram datagram = ionSystem.getLoader().load(record.getSNS().getMessage());
             Iterator<IonValue> iter = datagram.iterator();

@@ -47,6 +47,10 @@ public class KinesisDataStreamEventReceiver implements RequestHandler<KinesisEve
 
     @Override
     public Void handleRequest(KinesisEvent kinesisEvent, Context context) {
+        if (kinesisEvent == null || kinesisEvent.getRecords() == null) {
+            logger.warn("Input is not a valid Kinesis event.  Ignoring event.");
+            return null;
+        }
 
         boolean failBatch = false;
 

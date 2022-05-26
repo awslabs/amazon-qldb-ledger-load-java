@@ -51,6 +51,11 @@ public class KafkaStreamEventReceiver implements RequestHandler<KafkaEvent, Void
     public Void handleRequest(KafkaEvent kafkaEvent, Context context) {
         boolean failBatch = false;
 
+        if (kafkaEvent == null || kafkaEvent.getRecords() == null) {
+            logger.warn("Input is not a valid Kafka event.  Ignoring event.");
+            return null;
+        }
+
         for (String key : kafkaEvent.getRecords().keySet()) {
             for (KafkaEvent.KafkaEventRecord rec : kafkaEvent.getRecords().get(key)) {
                 byte[] bytes = Base64.getDecoder().decode(rec.getValue());

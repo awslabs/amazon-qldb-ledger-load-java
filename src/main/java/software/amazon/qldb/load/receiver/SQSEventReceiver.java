@@ -56,6 +56,10 @@ public class SQSEventReceiver implements RequestHandler<SQSEvent, SQSBatchRespon
             throw new RuntimeException("No loader set for this receiver");
 
         List<SQSBatchResponse.BatchItemFailure> batchItemFailures = new ArrayList<>();
+        if (sqsEvent == null || sqsEvent.getRecords() == null) {
+            logger.warn("Input is not a valid SQS event.  Ignoring event.");
+            return new SQSBatchResponse(batchItemFailures);
+        }
 
         for (SQSEvent.SQSMessage message : sqsEvent.getRecords()) {
             final String messageId = message.getMessageId();
