@@ -1,0 +1,29 @@
+[
+  {
+    "source-table": "person",
+    "target-table": "Person",
+    "id-field": "gov_idx",
+    "fields": [
+      {
+        "source-field": "gov_id",
+        "target-field": "GovId"
+      },
+      {
+        "source-field": "first_name",
+        "target-field": "FirstName"
+      },
+      {
+        "source-field": "last_name",
+        "target-field": "LastName"
+      },
+      {
+        "source-field": "age",
+        "target-field": "Age"
+      },
+      {
+        "source-field": "timestamp",
+        "target-field": "Timestamp"
+      }
+    ]
+  }
+]
