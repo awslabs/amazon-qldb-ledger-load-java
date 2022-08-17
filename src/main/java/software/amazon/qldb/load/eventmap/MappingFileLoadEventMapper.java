@@ -55,7 +55,7 @@ public class MappingFileLoadEventMapper implements LoadEventMapper {
     }
 
     @Override
-    public IonStruct mapDataRecord(IonStruct sourceRecord, String sourceTable) {
+    public IonStruct mapDataRecord(IonStruct sourceRecord, IonStruct beforeImage, String sourceTable) {
         TableConfig config = tableMap.get(sourceTable);
         if (config == null)
             return null;
@@ -73,10 +73,13 @@ public class MappingFileLoadEventMapper implements LoadEventMapper {
     }
 
     @Override
-    public IonValue mapPrimaryKey(IonStruct sourceRecord, String sourceTable) {
+    public IonValue mapPrimaryKey(IonStruct sourceRecord, IonStruct beforeImage, String sourceTable) {
         TableConfig config = tableMap.get(sourceTable);
         if (config == null)
             return null;
+
+        if (beforeImage != null && beforeImage.containsKey(config.primaryKeyField))
+            return beforeImage.get(config.primaryKeyField);
 
         return sourceRecord.get(config.primaryKeyField);
     }

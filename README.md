@@ -113,6 +113,32 @@ ledger, not for updates.  Otherwise, an excessive number of events may end up in
 
 ![Amazon EventBridge](img/eventbridge.png)
 
+### AWS Database Migration Service (DMS)
+
+This framework can be used with [AWS Database Migration Service (DMS)](https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html)
+to migrate data from a [DMS-supported source database](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Source.html)
+into the target ledger via an Amazon Kinesis Data Stream as the delivery channel.  The framework supports both full loads and
+Change Data Capture (CDC) to support one-time migrations, gradual cut-overs, or for on-going data replication from a source 
+database into a QLDB ledger acting as an audit database.  DDL changes are not supported by the framework.
+
+![AWS Database Migration Service](img/dms.png)
+
+Understand how DMS works with your source database and with Kinesis Data Streams target endpoints before using this
+approach.
+
+It is possible to change the value of the primary key or unique identifier for a record in the source table.  To
+propagate this change through to the ledger, the framework needs to know the previous value of the identifier.  To have
+DMS provide the previous identifier, add the following configuration to the migration task's settings:
+
+    "BeforeImageSettings": {
+        "EnableBeforeImage": true,
+        "ColumnFilter": "pk-only",
+        "FieldName": "before-image"
+    }
+
+See [here](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Tasks.CustomizingTasks.TaskSettings.BeforeImage.html)
+for more details on this setting.
+
 ## Requirements
 
 1. **Sign up for AWS** &mdash; Before you begin, you need an AWS account. For more information about creating an AWS
@@ -134,15 +160,15 @@ the file to an S3 bucket, where it will be used by one of the CloudFormation tem
 Deploy the loader project by creating a stack with one of the templates in the `src/main/cfn` folder of the project.  Select
 one of the following:
 
-| Template                            | Description |
-|-------------------------------------|---------|
-| qldb-ledger-load-via-sqs.yml        | SQS     |
-| qldb-ledger-load-via-sns.yml        | SNS     |
-| qldb-ledger-load-via-sns-to-sqs.yml | SNS to SQS | 
-| qldb-ledger-load-via-kinesis.yml | Kinesis |
-| qldb-ledger-load-via-msk.yml | MSK     |
+| Template                             | Description        |
+|--------------------------------------|--------------------|
+| qldb-ledger-load-via-sqs.yml         | SQS                |
+| qldb-ledger-load-via-sns.yml         | SNS                |
+| qldb-ledger-load-via-sns-to-sqs.yml  | SNS to SQS         | 
+| qldb-ledger-load-via-kinesis.yml     | Kinesis            |
+| qldb-ledger-load-via-msk.yml         | MSK                |
 | qldb-ledger-load-via-eventbridge.yml | Amazon EventBridge |
-
+| qldb-ledger-load-via-dms-kinesis.yml | DMS                |
 
 ## Getting Help
 

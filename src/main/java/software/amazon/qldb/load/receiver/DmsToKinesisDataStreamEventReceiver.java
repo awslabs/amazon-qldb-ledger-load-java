@@ -30,10 +30,11 @@ import software.amazon.qldb.load.eventmap.LoadEventMapper;
 import software.amazon.qldb.load.eventmap.LoadEventMapperFactory;
 import software.amazon.qldb.load.writer.RevisionWriter;
 import software.amazon.qldb.load.writer.RevisionWriterFactory;
+import software.amazon.qldb.load.writer.ValidationResult;
 
 
 /**
- * AWS Lambda function that consumes AWS Database Migration Service (DMS) events from a Kinesis Data Stream and writes
+ * AWS Lambda function that consumes AWS Database Migration Service (DMS) events from an Amazon Kinesis Data Stream and writes
  * them into a QLDB ledger, enabling automated migration and CDC replication of data from relational databases,
  * mainframes, and any other data source that DMS supports.  The behavior of this function with respect to writing events
  * into the ledger is primarily controlled by the RevisionWriter, whose type is determined through an environment variable.
@@ -47,6 +48,15 @@ public class DmsToKinesisDataStreamEventReceiver implements RequestHandler<Kines
     private final static IonSystem ionSystem = IonSystemBuilder.standard().build();
     protected RevisionWriter writer = RevisionWriterFactory.buildFromEnvironment();
     protected LoadEventMapper mapper = LoadEventMapperFactory.buildFromEnvironment();
+    protected final String beforeImageFieldName;
+
+
+    public DmsToKinesisDataStreamEventReceiver() {
+        if (System.getenv().containsKey("BEFORE_IMAGE_FIELD_NAME"))
+            beforeImageFieldName = System.getenv("BEFORE_IMAGE_FIELD_NAME");
+        else
+            beforeImageFieldName = "before-image";
+    }
 
 
     @Override
@@ -55,8 +65,6 @@ public class DmsToKinesisDataStreamEventReceiver implements RequestHandler<Kines
             logger.warn("Input is not a valid Kinesis event.  Ignoring event.");
             return null;
         }
-
-        boolean failBatch = false;
 
         for (KinesisEvent.KinesisEventRecord rec : kinesisEvent.getRecords()) {
             IonDatagram datagram = ionSystem.getLoader().load(rec.getKinesis().getData().array());
@@ -70,12 +78,23 @@ public class DmsToKinesisDataStreamEventReceiver implements RequestHandler<Kines
                     continue;
                 }
 
-                if (!((IonString) streamRecord.get("record-type")).toString().equals("data")) {
+                IonStruct metadata = (IonStruct) streamRecord.get("metadata");
+                String recordType = ((IonString) metadata.get("record-type")).stringValue();
+                if (!recordType.equals("data")) {
                     continue; // Skip control records
                 }
 
-                IonStruct metadata = (IonStruct) streamRecord.get("metadata");
+                logger.debug("RECEIVED EVENT:  " + streamRecord.toPrettyString());
+
+                IonStruct beforeImage = (IonStruct) streamRecord.get(beforeImageFieldName);
                 IonStruct data = (IonStruct) streamRecord.get("data");
+
+                String sourceTableName = ((IonString) metadata.get("table-name")).stringValue();
+                IonValue id = mapper.mapPrimaryKey(data, beforeImage, sourceTableName);
+                if (id == null) {
+                    logger.warn("Unable to determine primary key for record.  Skipping.  " + streamRecord.toPrettyString());
+                    continue;
+                }
 
                 Operation op = null;
                 String opString = ((IonString) metadata.get("operation")).stringValue();
@@ -91,19 +110,12 @@ public class DmsToKinesisDataStreamEventReceiver implements RequestHandler<Kines
                         op = Operation.DELETE;
                         break;
                     default:
-                        context.getLogger().log("Unexpected data operation \"" + opString + "\".  Skipping.");
+                        logger.warn("Unexpected data operation \"" + opString + "\".  Skipping.");
                         continue;
                 }
 
-                String sourceTableName = ((IonString) metadata.get("table-name")).stringValue();
-                IonValue id = mapper.mapPrimaryKey(data, sourceTableName);
-                if (id == null) {
-                    context.getLogger().log("Unable to determine primary key for record.  Skipping.  " + streamRecord.toPrettyString());
-                    continue;
-                }
-
                 final LoadEvent event = new LoadEvent();
-                event.setRevision(mapper.mapDataRecord(data, sourceTableName));
+                event.setRevision(mapper.mapDataRecord(data, beforeImage, sourceTableName));
                 event.setOperation(op);
                 event.setTableName(mapper.mapTableName(sourceTableName));
                 event.setId(id);
@@ -111,26 +123,17 @@ public class DmsToKinesisDataStreamEventReceiver implements RequestHandler<Kines
                     event.setVersion(0);
                 }
 
-                context.getLogger().log(event.toPrettyString());
-//
-//                ValidationResult result = writer.writeEvent(event);
-//                if (result.message != null) {
-//                    logger.warn(result.message);
-//                    logger.warn(gramValue.toPrettyString());
-//                }
-//
-//                failBatch = failBatch || result.fail;
+                ValidationResult result = writer.writeEvent(event);
+                if (result.message != null) {
+                    logger.warn(result.message);
+                    logger.warn("INPUT: " + gramValue.toPrettyString());
+                    logger.warn("LOAD EVENT: " + event.toPrettyString());
+                }
+
+                if (result.fail)
+                    throw new RuntimeException("Update failure: " + result.message + ": " + gramValue.toPrettyString());
             }
         }
-
-        //
-        // Instead of erroring-out when we encounter our first failed event load, process all of the load events in the
-        // batch.  An event that occurs in the stream after the failing event may fix the condition that the first event
-        // failed on (for example, if events are in the stream out-of-order).  Otherwise, the failure event may end up
-        // being a logjam that stalls the stream.
-        //
-        if (failBatch)
-            throw new RuntimeException("Batch contained failures.");
 
         return null;
     }

@@ -53,7 +53,6 @@ public class TableMapperRevisionWriter extends BaseRevisionWriter {
     }
 
 
-
     /**
      * Looks for a current record in the target ledger for the given event using an identifier field in the
      * document itself based on the table the event is for.

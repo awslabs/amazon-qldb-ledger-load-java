@@ -1,20 +1,37 @@
+//
+// This file maps the tables and fields/columns of the source database to the tables and fields in the
+// target ledger.  The table mappings are contained in a JSON array, where each item in the array maps
+// one source table to one target table.  Each table mapping has the following fields:
+//
+// source-table:  The name of a table in the source database
+// target-table:  The corresponding table in the target database
+// id-field:  The name of the field/column in the source table that uniquely identifies records in that table (e.g. a
+//            primary key field).
+// fields:  An array of mappings between fields/columns in the source database for this table and the corresponding
+//          fields/columns in the target table.  Each field mapping contains the following elements:
+//
+// source-field:  The name of the field/column in the source database
+// target-field:  The name of the corresponding field/column in the target database.
+//
+// Below is an example of a sample mapping.
+//
 [
   {
-    "source-table": "person",
-    "target-table": "Person",
-    "id-field": "gov_idx",
+    "source-table": "my_table",
+    "target-table": "MyTable",
+    "id-field": "id",
     "fields": [
       {
-        "source-field": "gov_id",
-        "target-field": "GovId"
+        "source-field": "id",
+        "target-field": "Id"
       },
       {
-        "source-field": "first_name",
-        "target-field": "FirstName"
+        "source-field": "field1",
+        "target-field": "Field1"
       },
       {
-        "source-field": "last_name",
-        "target-field": "LastName"
+        "source-field": "field2",
+        "target-field": "Field2"
       }
     ]
   }

@@ -46,8 +46,44 @@ public class MappingFileLoadEventMapperTest {
         sourceData.put("first_name").newString("John");
         sourceData.put("last_name").newString("Doe");
 
-        assertEquals(ION_SYSTEM.newString("8787"), mapper.mapPrimaryKey(sourceData, "person"));
+        assertEquals(ION_SYSTEM.newString("8787"), mapper.mapPrimaryKey(sourceData, null, "person"));
     }
+
+    @Test
+    public void testMapPrimaryKeyBeforeImageIdFound() {
+        MappingFileLoadEventMapper.MappingFileLoadEventMapperBuilder builder = MappingFileLoadEventMapper.builder();
+        builder.setConfigFilename("/dms-mapping-test1.json");
+        MappingFileLoadEventMapper mapper = (MappingFileLoadEventMapper) builder.build();
+
+        IonStruct sourceData = ION_SYSTEM.newEmptyStruct();
+        sourceData.put("gov_id").newString("8787");
+        sourceData.put("first_name").newString("John");
+        sourceData.put("last_name").newString("Doe");
+
+        IonStruct beforeImage = ION_SYSTEM.newEmptyStruct();
+        sourceData.put("gov_id").newString("xxxx");
+
+        assertEquals(ION_SYSTEM.newString("xxxx"), mapper.mapPrimaryKey(sourceData, beforeImage, "person"));
+    }
+
+
+    @Test
+    public void testMapPrimaryKeyBeforeImageIdNotFound() {
+        MappingFileLoadEventMapper.MappingFileLoadEventMapperBuilder builder = MappingFileLoadEventMapper.builder();
+        builder.setConfigFilename("/dms-mapping-test1.json");
+        MappingFileLoadEventMapper mapper = (MappingFileLoadEventMapper) builder.build();
+
+        IonStruct sourceData = ION_SYSTEM.newEmptyStruct();
+        sourceData.put("gov_id").newString("8787");
+        sourceData.put("first_name").newString("John");
+        sourceData.put("last_name").newString("Doe");
+
+        IonStruct beforeImage = ION_SYSTEM.newEmptyStruct();
+        sourceData.put("foo").newString("xxxx");
+
+        assertEquals(ION_SYSTEM.newString("8787"), mapper.mapPrimaryKey(sourceData, beforeImage, "person"));
+    }
+
 
     @Test
     public void testMapDataRecord() {
@@ -60,7 +96,7 @@ public class MappingFileLoadEventMapperTest {
         sourceData.put("first_name").newString("John");
         sourceData.put("last_name").newString("Doe");
 
-        IonStruct targetData = mapper.mapDataRecord(sourceData, "person");
+        IonStruct targetData = mapper.mapDataRecord(sourceData, null, "person");
         assertNotNull(targetData);
         assertEquals(3, targetData.size());
         assertEquals(ION_SYSTEM.newString("8787"), targetData.get("GovId"));
@@ -81,7 +117,7 @@ public class MappingFileLoadEventMapperTest {
         sourceData.put("age").newInt(30);
         sourceData.put("timestamp").newTimestamp(Timestamp.forDay(2022, 8, 9));
 
-        IonStruct targetData = mapper.mapDataRecord(sourceData, "person");
+        IonStruct targetData = mapper.mapDataRecord(sourceData, null, "person");
         assertNotNull(targetData);
         assertEquals(5, targetData.size());
         assertEquals(ION_SYSTEM.newString("8787"), targetData.get("GovId"));
@@ -106,7 +142,7 @@ public class MappingFileLoadEventMapperTest {
         sourceData.put("unmapped2").newString("test2");
         sourceData.put("unmapped3").newString("test3");
 
-        IonStruct targetData = mapper.mapDataRecord(sourceData, "person");
+        IonStruct targetData = mapper.mapDataRecord(sourceData, null, "person");
         assertNotNull(targetData);
         assertEquals(3, targetData.size());
         assertEquals(ION_SYSTEM.newString("8787"), targetData.get("GovId"));
@@ -114,7 +150,7 @@ public class MappingFileLoadEventMapperTest {
         assertEquals(ION_SYSTEM.newString("Doe"), targetData.get("LastName"));
     }
 
-    
+
     @Test
     public void testMapDataRecordTooFewFields() {
         MappingFileLoadEventMapper.MappingFileLoadEventMapperBuilder builder = MappingFileLoadEventMapper.builder();
@@ -125,7 +161,7 @@ public class MappingFileLoadEventMapperTest {
         sourceData.put("gov_id").newString("8787");
         sourceData.put("first_name").newString("John");
 
-        IonStruct targetData = mapper.mapDataRecord(sourceData, "person");
+        IonStruct targetData = mapper.mapDataRecord(sourceData, null, "person");
         assertNotNull(targetData);
         assertEquals(2, targetData.size());
         assertEquals(ION_SYSTEM.newString("8787"), targetData.get("GovId"));
