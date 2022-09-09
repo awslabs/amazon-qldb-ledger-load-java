@@ -170,6 +170,55 @@ one of the following:
 | qldb-ledger-load-via-eventbridge.yml | Amazon EventBridge |
 | qldb-ledger-load-via-dms-kinesis.yml | DMS                |
 
+## Configuration
+
+The CloudFormation templates each contain configuration parameters with a short description.  Some parameters require
+more explanation and are described here.
+
+### Strict Mode (LoaderStrictMode)
+
+Strict mode determines the validation behavior of the RevisionWriter in certain circumstances.  When strict mode is on,
+validation will fail DELETE and UPDATE events if the corresponding record does not exist in the target ledger.  When
+strict mode is off, these events will be quietly skipped.  Strict mode is useful when the target ledger is expected to
+be in a perfect replicated state.  Turning strict mode off provides flexibility and can be useful to repair a target ledger
+when replication is interrupted unexpectedly.
+
+### LambdaCodeS3Key and LambdaCodeS3Bucket
+
+Maven creates a deployment file called amazon-qldb-ledger-load-[VERSION]-deploy-pkg.jar.  This jar contains the code
+from this project and its dependencies and is suitable for Lambda function deployments.  After building the project,
+this file should be uploaded to an Amazon S3 bucket in your account.  The LambdaCodeS3Key and LambdaCodeS3Bucket
+configuration parameters tell the CloudFormation template where the deployment package is in S3 when creating the Lambda
+functions.  LambdaCodeS3Key specifies the "path" of the deployment package relative to the root of bucket. For example,
+"projects/code/qldb/amazon-qldb-ledger-load-[VERSION]-deploy-pkg.jar".
+
+### RevisionWriterClass
+
+Specifies the fully-qualified class name of the RevisionWriter that the loader Lambda function (event handler) uses to
+interact with the ledger(s).  Implementations must be sub-classes of software.amazon.qldb.load.writer.RevisionWriter.  The
+project currently provides two RevisionWriter implementations: BaseRevisionWriter and TableMapperRevisionWriter.  You may
+create your own if these don't provide the functionality you need.
+
+### LoaderProvisionedConcurrency
+
+The project uses [Lambda provisioned concurrency](https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html)
+to reserve a baseline set of Lambda resources to apply to ledger loading.  QLDB ledger throughput depends on the number
+of clients -- more writers yield higher throughput (up to a point).  However, provisioned concurrency can be expensive.
+This parameter allows you to set the minimum provisioned capacity for loading and control costs.  The project should be
+undeployed when no longer needed to reduce costs.
+
+### MaxOccRetries
+
+The QLDB drivers will automatically retry transactions up to 4 times when [OCC conflicts](https://docs.aws.amazon.com/qldb/latest/developerguide/concurrency.html)
+are encountered.  You can override this behavior with this parameter.  In general, it's best to leave this at its
+default setting.
+
+### MaxLedgerSessionsPerLambda
+
+Determines the number of concurrent ledger sessions each instance of the QLDB driver can consume.  The default for this is
+1, which means 1 session per Lambda instance.  Leave this setting at its default unless your specific implementation
+requires more.
+
 ## Getting Help
 
 Please use these community resources for getting help.
